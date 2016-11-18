@@ -5,6 +5,7 @@
 ## Description
 
 ## Usage
+sabaviz --exclude-processes ssh --exclude-ports 22 --host-check internal.domain.name target.host.name
 
 ## Install
 

@@ -27,6 +27,7 @@ func (cli *CLI) Run(args []string) int {
 	var (
 		excludeProcesses string
 		excludePorts     string
+		hostCheck        string
 		user             string
 		i                string
 
@@ -38,8 +39,8 @@ func (cli *CLI) Run(args []string) int {
 	flags.SetOutput(cli.errStream)
 
 	flags.StringVar(&excludeProcesses, "exclude-processes", "", "")
-
 	flags.StringVar(&excludePorts, "exclude-ports", "", "")
+	flags.StringVar(&hostCheck, "host-check", "", "")
 
 	flags.StringVar(&user, "user", "", "")
 	flags.StringVar(&user, "u", "", "(Short)")
@@ -65,6 +66,7 @@ func (cli *CLI) Run(args []string) int {
 	exPorts := string.Split(",", excludePorts)
 	_ = user
 	_ = i
+	firstTarget := flags.Args()[0]
 
 	// graph
 	graphAst, _ := gographviz.Parse([]byte(`digraph G {}`))
@@ -73,15 +75,17 @@ func (cli *CLI) Run(args []string) int {
 
 	// queue作成
 	var queue []string
+	queue = append(queue, firstTarget)
 	// set 作成
 	hostMap := make(map[string]bool)
+	hostMap[firstTarget] = true
 
 	// for queueが空になるまで
 	for len(queue) < 1 {
 		host = queue[0]
 		queue = queue[1:]
 		os = checkOS(host)
-		hosts := netstat(os, host, exProcesses, exPorts, graph)
+		hosts := netstat(os, host, hostCheck, exProcesses, exPorts, graph)
 		for _, host := range hosts {
 			_, ok := hostMap[host]
 			if !ok {
@@ -90,23 +94,24 @@ func (cli *CLI) Run(args []string) int {
 			}
 		}
 	}
+	fmt.Println(graph.String())
 
 	return ExitCodeOK
 }
 
 func checkOS(host string) string {
 	os := "Ubuntu"
-	out, err := exec.Command("ssh", "-i", "~/.ssh/isucon-aws.pem", host, "uname", "-a").Output()
+	out, err := exec.Command("ssh", host, "uname", "-a").Output()
 	uname := string(out)
 	if strings.Contains(uname, "amzn") {
 		os = "Amazon Linux AMI"
 	} else if strings.Contains(uname, "debian") {
-		os = "debian"
+		os = "Debian"
 	}
 	return os
 }
 
-func netstat(os, host string, exProcesses, exPorts []string, graph *gographviz.Graph) []string {
+func netstat(os, host, hostCheck string, exProcesses, exPorts []string, graph *gographviz.Graph) []string {
 	var ret []string
 	netstatOption := ""
 
@@ -115,11 +120,13 @@ func netstat(os, host string, exProcesses, exPorts []string, graph *gographviz.G
 		option = "-tp"
 	case "Ubuntu":
 		option = "-tpW"
-	case "Ubuntu":
+	case "Debian":
+		option = "-tp"
+	default:
 		option = "-tp"
 	}
 
-	out, err := exec.Command("ssh", "-i", "~/.ssh/isucon-aws.pem", host, "netstat", netstatOption, "--numeric-ports").Output()
+	out, err := exec.Command("ssh", host, "netstat", netstatOption, "--numeric-ports").Output()
 
 	if err != nil {
 		return ExitCodeError
@@ -131,11 +138,17 @@ func netstat(os, host string, exProcesses, exPorts []string, graph *gographviz.G
 			// 接続している側か逆か
 			send := false
 			if l[6] == "-" {
-				host = string.Split(":", l[3])[0]
+				target = string.Split(":", l[3])[0]
 			} else {
-				host = string.Split(":", l[4])[0]
+				target = string.Split(":", l[4])[0]
 				send = true
 			}
+
+			// targetが特定の文字列を含んでいなかったらskip
+			if !string.Contains(target, hostCheck) {
+				continue
+			}
+
 			flag := false
 			// exclude-processesだったらcontinue
 			for _, exProcess := range exProcesses {
@@ -157,10 +170,10 @@ func netstat(os, host string, exProcesses, exPorts []string, graph *gographviz.G
 			fmt.Println(l)
 			// l[6]が"-"でなければ矢印
 			if send {
-				graph.AddEdge(origin, host, true, nil)
+				graph.AddEdge(host, target, true, nil)
 			}
 			// queueに追加するhosts
-			ret = append(ret, host)
+			ret = append(ret, target)
 		}
 	}
 

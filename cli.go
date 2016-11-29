@@ -69,9 +69,9 @@ func (cli *CLI) Run(args []string) int {
 	}
 
 	var conf Config
-	conf.exProcesses = strings.Split(",", excludeProcesses)
-	conf.exPorts = strings.Split(",", excludePorts)
-	conf.hostCheck = strings.Split(",", hostCheck)
+	conf.exProcesses = strings.Split(excludeProcesses, ",")
+	conf.exPorts = strings.Split(excludePorts, ",")
+	conf.hostCheck = strings.Split(hostCheck, ",")
 	conf.user = user
 	conf.sshKey = i
 

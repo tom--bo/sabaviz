@@ -95,7 +95,6 @@ func netstat(host Host, conf Config) []Connection {
 	}
 
 	out, err := exec.Command("ssh", host.hostName, "netstat", netstatOption).Output()
-
 	if err != nil {
 		return nil
 	}
@@ -118,10 +117,10 @@ func netstat(host Host, conf Config) []Connection {
 }
 
 func makeConnectionObj(host Host, l []string) Connection {
-	local := strings.Split(":", l[3])[0]
-	localPort := strings.Split(":", l[3])[1]
-	foreign := strings.Split(":", l[4])[0]
-	foreignPort := strings.Split(":", l[4])[1]
+	local := strings.Split(l[3], ":")[0]
+	localPort := strings.Split(l[3], ":")[1]
+	foreign := strings.Split(l[4], ":")[0]
+	foreignPort := strings.Split(l[4], ":")[1]
 
 	var conn Connection
 	if local == host.hostName {
@@ -149,10 +148,10 @@ func pickPort(l, f string) string {
 }
 
 func checkExcludePattern(conf Config, l []string) bool {
-	local := strings.Split(":", l[3])[0]
-	localPort := strings.Split(":", l[3])[1]
-	foreign := strings.Split(":", l[4])[0]
-	foreignPort := strings.Split(":", l[4])[1]
+	local := strings.Split(l[3], ":")[0]
+	localPort := strings.Split(l[3], ":")[1]
+	foreign := strings.Split(l[4], ":")[0]
+	foreignPort := strings.Split(l[4], ":")[1]
 	processName := l[6]
 
 	// targetが特定の文字列を含んでいなかったらskip
@@ -163,13 +162,13 @@ func checkExcludePattern(conf Config, l []string) bool {
 	}
 
 	for _, exProcess := range conf.exProcesses {
-		if strings.Contains(processName, exProcess) {
+		if exProcess != "" && strings.Contains(processName, exProcess) {
 			return false
 		}
 	}
 
 	for _, exPort := range conf.exPorts {
-		if strings.Contains(localPort, exPort) || strings.Contains(foreignPort, exPort) {
+		if exPort != "" && (strings.Contains(localPort, exPort) || strings.Contains(foreignPort, exPort)) {
 			return false
 		}
 	}

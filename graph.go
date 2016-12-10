@@ -19,7 +19,7 @@ type Graph struct {
 }
 
 func (g *Graph) NewGraph() {
-	graphAst, _ := gographviz.Parse([]byte(`digraph G{}`))
+	graphAst, _ := gographviz.Parse([]byte(`graph G{}`))
 	g.graph = gographviz.NewGraph()
 	gographviz.Analyse(graphAst, g.graph)
 	g.edgeMap = make(map[Edge]bool)

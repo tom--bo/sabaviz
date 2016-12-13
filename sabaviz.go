@@ -38,8 +38,12 @@ func (s Sabaviz) main(firstHost string) {
 	queue = append(queue, first)
 	hostMap[firstHost] = true
 
-	// for queueが空になるまで
+	// queueが空になるまで
+	cnt := 0
 	for len(queue) > 0 {
+		if conf.hostThreshold != -1 && cnt >= conf.hostThreshold {
+			break
+		}
 		host := queue[0]
 		queue = queue[1:]
 		host.distribution = checkDistri(host.hostName)
@@ -56,6 +60,7 @@ func (s Sabaviz) main(firstHost string) {
 				hostMap[conn.hostName] = true
 			}
 		}
+		cnt += 1
 	}
 	fmt.Println(g.graph.String())
 }

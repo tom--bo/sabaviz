@@ -1,10 +1,7 @@
 package main
 
 import (
-	// "fmt"
 	"github.com/awalterschulze/gographviz"
-	// "io"
-	// "strings"
 )
 
 type Edge struct {
@@ -26,14 +23,14 @@ func (g *Graph) NewGraph() {
 }
 
 func (g *Graph) AddNode(h Host) {
-	host := '"' + h.hostName + '"'
+	host := "\"" + h.hostName + "\""
 	g.graph.AddNode("G", host, nil)
 }
 
 func (g *Graph) AddConnectionOnce(h Host, conn Connection) {
 	var edge Edge
-	h1 := '"' + h.hostName + '"'
-	h2 := '"' + conn.hostName + '"'
+	h1 := "\"" + h.hostName + "\""
+	h2 := "\"" + conn.hostName + "\""
 	if h.hostName < conn.hostName {
 		edge = Edge{h1, h2, conn.port}
 	} else {

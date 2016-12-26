@@ -22,12 +22,13 @@ type CLI struct {
 
 // Config object
 type Config struct {
-	exProcesses   []string
-	exPorts       []string
-	hostCheck     []string
-	user          string
-	sshKey        string
-	hostThreshold int
+	exProcesses     []string
+	exPorts         []string
+	hostCheck       []string
+	user            string
+	sshKey          string
+	hostThreshold   int
+	connectionLimit int
 }
 
 // Run invokes the CLI with the given arguments.
@@ -38,6 +39,7 @@ func (cli *CLI) Run(args []string) int {
 		hostCheck        string
 		user             string
 		hostThreshold    int
+		connectionLimit  int
 		i                string
 		version          bool
 	)
@@ -54,6 +56,7 @@ func (cli *CLI) Run(args []string) int {
 	flags.StringVar(&user, "u", "", "(Short)")
 
 	flags.IntVar(&hostThreshold, "test", -1, "")
+	flags.IntVar(&connectionLimit, "max", 20, "")
 
 	flags.StringVar(&i, "ssh-key", "", "")
 	flags.StringVar(&i, "i", "", "(Short)")
@@ -79,7 +82,7 @@ func (cli *CLI) Run(args []string) int {
 	conf.user = user
 	conf.sshKey = i
 	conf.hostThreshold = hostThreshold
-	// fmt.Println(hostThreshold)
+	conf.connectionLimit = connectionLimit
 
 	firstHost := flags.Args()[0]
 	sabaviz := &Sabaviz{outStream: cli.outStream, errStream: cli.errStream, conf: conf}

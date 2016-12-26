@@ -24,30 +24,30 @@ type Connection struct {
 	port     string
 }
 
-func (s Sabaviz) main(firstHost string) {
+func (s Sabaviz) main(target string) {
 	g := &Graph{}
 	g.NewGraph()
 
-	first := Host{hostName: firstHost}
+	firstHost := Host{hostName: target}
 
 	// hashmap for check host
 	hostMap := make(map[string]bool)
 
 	// queue作成
 	var queue []Host
-	queue = append(queue, first)
-	hostMap[firstHost] = true
+	queue = append(queue, firstHost)
+	hostMap[target] = true
+	g.AddNode(target)
 
 	// queueが空になるまで
 	cnt := 0
 	for len(queue) > 0 {
-		if conf.hostThreshold != -1 && cnt >= conf.hostThreshold {
+		if s.conf.hostThreshold != -1 && cnt >= s.conf.hostThreshold {
 			break
 		}
 		host := queue[0]
 		queue = queue[1:]
 		host.distribution = checkDistri(host.hostName)
-		g.AddNode(host)
 
 		// netstatでConnectionオブジェクトのスライスを返す
 		// これは対象ホストとportでuniqになったものにしておく
@@ -56,6 +56,7 @@ func (s Sabaviz) main(firstHost string) {
 			g.AddConnectionOnce(host, conn)
 			_, ok := hostMap[conn.hostName]
 			if !ok {
+				g.AddNode(conn.hostName)
 				queue = append(queue, Host{hostName: conn.hostName})
 				hostMap[conn.hostName] = true
 			}

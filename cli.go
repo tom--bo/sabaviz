@@ -79,7 +79,7 @@ func (cli *CLI) Run(args []string) int {
 	conf.user = user
 	conf.sshKey = i
 	conf.hostThreshold = hostThreshold
-	fmt.Println(hostThreshold)
+	// fmt.Println(hostThreshold)
 
 	firstHost := flags.Args()[0]
 	sabaviz := &Sabaviz{outStream: cli.outStream, errStream: cli.errStream, conf: conf}

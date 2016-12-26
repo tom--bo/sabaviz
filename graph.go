@@ -22,8 +22,8 @@ func (g *Graph) NewGraph() {
 	g.edgeMap = make(map[Edge]bool)
 }
 
-func (g *Graph) AddNode(h Host) {
-	host := "\"" + h.hostName + "\""
+func (g *Graph) AddNode(hostName string) {
+	host := "\"" + hostName + "\""
 	g.graph.AddNode("G", host, nil)
 }
 

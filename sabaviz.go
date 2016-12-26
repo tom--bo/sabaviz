@@ -52,6 +52,9 @@ func (s Sabaviz) main(target string) {
 		// netstatでConnectionオブジェクトのスライスを返す
 		// これは対象ホストとportでuniqになったものにしておく
 		connections := netstat(host, s.conf)
+		if len(connections) >= s.conf.connectionLimit {
+			continue
+		}
 		for _, conn := range connections {
 			g.AddConnectionOnce(host, conn)
 			_, ok := hostMap[conn.hostName]

@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 type Sabaviz struct {
@@ -13,84 +14,98 @@ type Sabaviz struct {
 	conf                 Config
 }
 
-type Host struct {
-	hostName     string
-	distribution string
-	conns        []Connection
-}
-
 type Connection struct {
 	hostName string
 	port     string
+}
+
+type Share struct {
+	found   int
+	stated  int
+	queue   []string
+	hostMap map[string]bool // hashmap for check host
+	mu      sync.Mutex
 }
 
 func (s Sabaviz) main(target string) {
 	g := &Graph{}
 	g.NewGraph()
 
-	firstHost := Host{hostName: target}
-
-	// hashmap for check host
-	hostMap := make(map[string]bool)
-
-	// queue作成
-	var queue []Host
-	queue = append(queue, firstHost)
-	hostMap[target] = true
+	share := Share{found: 1, stated: 0}
+	share.hostMap = make(map[string]bool)
+	share.queue = append(share.queue, target)
+	share.hostMap[target] = true
 	g.AddNode(target)
 
-	// queueが空になるまで
-	cnt := 0
-	for len(queue) > 0 {
-		if s.conf.hostThreshold != -1 && cnt >= s.conf.hostThreshold {
+	ch1 := make(chan string)
+	ch2 := make(chan string)
+	ch3 := make(chan string)
+	go fanoutWorker(ch1, share, s.conf, g)
+	go fanoutWorker(ch2, share, s.conf, g)
+	go fanoutWorker(ch3, share, s.conf, g)
+	var localQueue []string
+
+	for share.found != share.stated {
+		if s.conf.hostThreshold != -1 && share.found >= s.conf.hostThreshold {
+			// fix to break safely
 			break
 		}
-		host := queue[0]
-		queue = queue[1:]
-		host.distribution = checkDistri(host.hostName)
-
-		// netstatでConnectionオブジェクトのスライスを返す
-		// これは対象ホストとportでuniqになったものにしておく
-		connections := netstat(host, s.conf)
-		if len(connections) >= s.conf.connectionLimit {
-			continue
+		share.mu.Lock()
+		if len(share.queue) > 0 {
+			localQueue = append(localQueue, share.queue...)
+			share.queue = share.queue[len(share.queue):]
 		}
-		for _, conn := range connections {
-			g.AddConnectionOnce(host, conn)
-			_, ok := hostMap[conn.hostName]
-			if !ok {
-				g.AddNode(conn.hostName)
-				queue = append(queue, Host{hostName: conn.hostName})
-				hostMap[conn.hostName] = true
+		share.mu.Unlock()
+		for _, host := range localQueue {
+			select {
+			case ch1 <- host:
+			case ch2 <- host:
+			case ch3 <- host:
+			default:
 			}
 		}
-		cnt += 1
+		localQueue = localQueue[len(localQueue):]
 	}
 	fmt.Println(g.graph.String())
 }
 
-func checkDistri(host string) string {
-	distri := ""
-	out, _ := exec.Command("ssh", host, "cat", "/etc/issue").Output()
-	issue := string(out)
-	if strings.Contains(issue, "Amazon Linux AMI") {
-		distri = "AmazonLinuxAMI"
-	} else if strings.Contains(issue, "Debian") {
-		distri = "Debian"
-	} else if strings.Contains(issue, "CentOS") {
-		distri = "CentOS"
-	} else if strings.Contains(issue, "Ubuntu") {
-		distri = "Ubuntu"
+func fanoutWorker(ch chan string, share Share, conf Config, g *Graph) {
+	for {
+		host, ok := <-ch
+		if !ok {
+			return
+		}
+
+		connections := netstat(host, conf)
+		if len(connections) >= conf.connectionLimit {
+			continue
+		}
+
+		share.mu.Lock()
+		for _, conn := range connections {
+			g.AddConnectionOnce(host, conn)
+			_, ok := share.hostMap[conn.hostName]
+			if !ok {
+				g.AddNode(conn.hostName)
+				share.queue = append(share.queue, conn.hostName)
+				share.hostMap[conn.hostName] = true
+				share.found += 1
+			}
+		}
+		share.stated += 1
+		share.mu.Unlock()
 	}
-	return distri
 }
 
-func netstat(host Host, conf Config) []Connection {
+// return slice of Connection object which is unique by port and hostname
+func netstat(host string, conf Config) []Connection {
+	// hostはチャネルから受け取る
 	var ret []Connection
 	connMap := make(map[Connection]bool)
 
 	netstatOption := ""
-	switch host.distribution {
+	distri := checkDistri(host)
+	switch distri {
 	case "Amazon Linux AMI":
 		netstatOption = "-atp"
 	case "Ubuntu":
@@ -103,7 +118,7 @@ func netstat(host Host, conf Config) []Connection {
 		netstatOption = "-atp"
 	}
 
-	out, err := exec.Command("ssh", host.hostName, "netstat", netstatOption).Output()
+	out, err := exec.Command("ssh", host, "netstat", netstatOption).Output()
 	if err != nil {
 		return nil
 	}
@@ -125,21 +140,35 @@ func netstat(host Host, conf Config) []Connection {
 	return ret
 }
 
-func makeConnectionObj(host Host, l []string) Connection {
+func checkDistri(host string) string {
+	distri := ""
+	out, _ := exec.Command("ssh", host, "cat", "/etc/issue").Output()
+	issue := string(out)
+	if strings.Contains(issue, "Amazon Linux AMI") {
+		distri = "AmazonLinuxAMI"
+	} else if strings.Contains(issue, "Debian") {
+		distri = "Debian"
+	} else if strings.Contains(issue, "CentOS") {
+		distri = "CentOS"
+	} else if strings.Contains(issue, "Ubuntu") {
+		distri = "Ubuntu"
+	}
+	return distri
+}
+
+func makeConnectionObj(host string, l []string) Connection {
 	local := strings.Split(l[3], ":")[0]
 	localPort := strings.Split(l[3], ":")[1]
 	foreign := strings.Split(l[4], ":")[0]
 	foreignPort := strings.Split(l[4], ":")[1]
 
 	var conn Connection
-	if local == host.hostName {
+	if local == host {
 		conn.hostName = foreign
 	} else {
 		conn.hostName = local
 	}
-
 	conn.port = pickPort(localPort, foreignPort)
-
 	return conn
 }
 

@@ -27,11 +27,11 @@ func (g *Graph) AddNode(hostName string) {
 	g.graph.AddNode("G", host, nil)
 }
 
-func (g *Graph) AddConnectionOnce(h Host, conn Connection) {
+func (g *Graph) AddConnectionOnce(ori string, conn Connection) {
 	var edge Edge
-	h1 := "\"" + h.hostName + "\""
+	h1 := "\"" + ori + "\""
 	h2 := "\"" + conn.hostName + "\""
-	if h.hostName < conn.hostName {
+	if h1 < h2 {
 		edge = Edge{h1, h2, conn.port}
 	} else {
 		edge = Edge{h2, h1, conn.port}

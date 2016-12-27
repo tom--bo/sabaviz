@@ -5,7 +5,17 @@
 ## Description
 
 ## Usage
-sabaviz --exclude-processes ssh --exclude-ports 22 --host-check internal.domain.name target.host.name
+```
+$ sabaviz -max 20 --exclude-processes ssh --exclude-ports 22 --host-check internal.domain.name target.host.name > graph.dot
+```
+
+Then you will get graph.dot for Graphviz.
+To get image, use dot command.
+
+For example
+```
+dot -Tpng graph.dot -o graph.png
+```
 
 ## Install
 

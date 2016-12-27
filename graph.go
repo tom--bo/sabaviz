@@ -39,6 +39,7 @@ func (g *Graph) AddConnectionOnce(h Host, conn Connection) {
 	_, ok := g.edgeMap[edge]
 	if !ok {
 		g.edgeMap[edge] = true
-		g.graph.AddEdge(h1, h2, false, map[string]string{"label": conn.port})
+        port := "\"" + conn.port + "\""
+		g.graph.AddEdge(h1, h2, false, map[string]string{"label": port})
 	}
 }

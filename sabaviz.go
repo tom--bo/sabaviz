@@ -44,10 +44,13 @@ func (s Sabaviz) main(target string) {
 	go fanoutWorker(ch2, share, s.conf, g)
 	go fanoutWorker(ch3, share, s.conf, g)
 	var localQueue []string
+	cancelFlag := false
 
 	for share.found != share.stated {
 		if s.conf.hostThreshold != -1 && share.found >= s.conf.hostThreshold {
 			// fix to break safely
+			share.mu.Lock()
+			cancelFlag = true
 			break
 		}
 		share.mu.Lock()
@@ -65,6 +68,9 @@ func (s Sabaviz) main(target string) {
 			}
 		}
 		localQueue = localQueue[len(localQueue):]
+	}
+	if cancelFlag {
+		share.mu.Unlock()
 	}
 	fmt.Println(g.graph.String())
 }

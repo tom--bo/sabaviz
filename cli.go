@@ -48,18 +48,18 @@ func (cli *CLI) Run(args []string) int {
 	flags := flag.NewFlagSet(Name, flag.ContinueOnError)
 	flags.SetOutput(cli.errStream)
 
-	flags.StringVar(&excludeProcesses, "exclude-processes", "", "")
-	flags.StringVar(&excludePorts, "exclude-ports", "", "")
-	flags.StringVar(&hostCheck, "host-check", "", "")
+	flags.StringVar(&excludeProcesses, "exclude-processes", "", "comma separated exclude processes like ssh,ldap,syslog")
+	flags.StringVar(&excludePorts, "exclude-ports", "", "comma separated exclude processes lile 22,53,389")
+	flags.StringVar(&hostCheck, "host-check", "", "specify domain name to filter only local domain host")
 
-	flags.StringVar(&user, "user", "", "")
-	flags.StringVar(&user, "u", "", "(Short)")
+	flags.StringVar(&user, "user", "", "ssh user")
+	flags.StringVar(&user, "u", "", "(Short of user option)")
 
-	flags.IntVar(&hostThreshold, "test", -1, "")
-	flags.IntVar(&connectionLimit, "max", 20, "")
+	flags.IntVar(&hostThreshold, "test", -1, "Limit of host to stat(not node count in graph)\n\t")
+	flags.IntVar(&connectionLimit, "max", 20, "Limit of connection per one host.\n\tThe host which has connections more than this limit is ignored.\n\t")
 
 	flags.StringVar(&i, "ssh-key", "", "")
-	flags.StringVar(&i, "i", "", "(Short)")
+	flags.StringVar(&i, "i", "", "(Short of ssh-key option)")
 
 	flags.BoolVar(&version, "version", false, "Print version information and quit.")
 	flags.BoolVar(&version, "v", false, "(Short)")

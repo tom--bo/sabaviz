@@ -1,11 +1,25 @@
 # sabaviz
 
+sabaviz creates dot files(.dot) for graphviz, which visualize servers connections based on netstat output.
 
+sabaviz does ssh and netstat, and furthermore does ssh based on past serevrs output. It is better to specify options (exclude-processes, exclude-ports, host-check, max, test), for not doing ssh to all hosts in first servers connection.
 
 ## Description
 
 ## Usage
-sabaviz --exclude-processes ssh --exclude-ports 22 --host-check internal.domain.name target.host.name
+```
+$ sabaviz -max 20 --exclude-processes ssh,ldap --exclude-ports 22 --host-check internal.domain.name target.host.name > graph.dot
+```
+
+Then you will get graph.dot for Graphviz.
+To get image, use dot command.
+
+For example
+```
+dot -Tpng graph.dot -o graph.png
+```
+
+![top-page](https://github.com/tom--bo/sabaviz/blob/image/sample.png)
 
 ## Install
 

@@ -131,7 +131,7 @@ func netstat(host string, conf Config) []Connection {
 	lines := strings.Split(string(out), "\n")
 	for _, line := range lines {
 		l := strings.Fields(line)
-		if len(l) > 6 && strings.Contains(l[5], "ESTABLISHED") {
+		if len(l) > 6 && (strings.Contains(l[5], "ESTABLISHED") || strings.Contains(l[5], "TIME_WAIT")) {
 			if checkExcludePattern(conf, l) {
 				// fmt.Println(l)
 				conn := makeConnectionObj(host, l)

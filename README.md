@@ -1,12 +1,12 @@
 # sabaviz
 
-
+sabaviz creates dot files(.dot) for graphviz, which visualize servers connections by netstat output.
 
 ## Description
 
 ## Usage
 ```
-$ sabaviz -max 20 --exclude-processes ssh --exclude-ports 22 --host-check internal.domain.name target.host.name > graph.dot
+$ sabaviz -max 20 --exclude-processes ssh,ldap --exclude-ports 22 --host-check internal.domain.name target.host.name > graph.dot
 ```
 
 Then you will get graph.dot for Graphviz.
@@ -16,6 +16,8 @@ For example
 ```
 dot -Tpng graph.dot -o graph.png
 ```
+
+![top-page](https://github.com/tom--bo/sabaviz/blob/image/sample.png)
 
 ## Install
 

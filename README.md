@@ -1,6 +1,8 @@
 # sabaviz
 
-sabaviz creates dot files(.dot) for graphviz, which visualize servers connections by netstat output.
+sabaviz creates dot files(.dot) for graphviz, which visualize servers connections based on netstat output.
+
+sabaviz does ssh and netstat, and furthermore does ssh based on past serevrs output. It is better to specify options (exclude-processes, exclude-ports, host-check, max, test), for not doing ssh to all hosts in first servers connection.
 
 ## Description
 

@@ -21,7 +21,7 @@ type Connection struct {
 
 type Share struct {
 	found   int
-	stated  int
+	checked int
 	queue   []string
 	hostMap map[string]bool // hashmap for check host
 	mu      sync.Mutex
@@ -30,25 +30,25 @@ type Share struct {
 func (s Sabaviz) main(target string) {
 	g := &Graph{}
 	g.NewGraph()
-
-	share := Share{found: 1, stated: 0}
-	share.hostMap = make(map[string]bool)
-	share.queue = append(share.queue, target)
-	share.hostMap[target] = true
 	g.AddNode(target)
 
-	ch1 := make(chan string)
-	ch2 := make(chan string)
-	ch3 := make(chan string)
-	go fanoutWorker(ch1, share, s.conf, g)
-	go fanoutWorker(ch2, share, s.conf, g)
-	go fanoutWorker(ch3, share, s.conf, g)
+	share := Share{found: 1, checked: 0}
+	share.queue = append(share.queue, target)
+	share.hostMap = make(map[string]bool)
+	share.hostMap[target] = true
+
 	var localQueue []string
 	cancelFlag := false
 
-	for share.found != share.stated {
-		if s.conf.hostThreshold != -1 && share.found >= s.conf.hostThreshold {
-			// fix to break safely
+	var chs [3]chan string
+	for i := range chs {
+		chs[i] = make(chan string)
+		go fanoutWorker(chs[i], &share, s.conf, g)
+	}
+
+	for share.found != share.checked {
+		if s.conf.hostThreshold != -1 && share.checked >= s.conf.hostThreshold {
+			// [fix] to break safely
 			share.mu.Lock()
 			cancelFlag = true
 			break
@@ -61,9 +61,9 @@ func (s Sabaviz) main(target string) {
 		share.mu.Unlock()
 		for _, host := range localQueue {
 			select {
-			case ch1 <- host:
-			case ch2 <- host:
-			case ch3 <- host:
+			case chs[0] <- host:
+			case chs[1] <- host:
+			case chs[2] <- host:
 			default:
 			}
 		}
@@ -75,7 +75,7 @@ func (s Sabaviz) main(target string) {
 	fmt.Println(g.graph.String())
 }
 
-func fanoutWorker(ch chan string, share Share, conf Config, g *Graph) {
+func fanoutWorker(ch chan string, share *Share, conf Config, g *Graph) {
 	for {
 		host, ok := <-ch
 		if !ok {
@@ -98,7 +98,7 @@ func fanoutWorker(ch chan string, share Share, conf Config, g *Graph) {
 				share.found += 1
 			}
 		}
-		share.stated += 1
+		share.checked += 1
 		share.mu.Unlock()
 	}
 }
@@ -198,7 +198,6 @@ func checkExcludePattern(conf Config, l []string) bool {
 	foreignPort := strings.Split(l[4], ":")[1]
 	processName := l[6]
 
-	// targetが特定の文字列を含んでいなかったらskip
 	for _, h := range conf.hostCheck {
 		if !strings.Contains(local, h) || !strings.Contains(foreign, h) {
 			return false

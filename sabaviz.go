@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 )
 
 type Sabaviz struct {
@@ -65,9 +66,13 @@ func (s Sabaviz) main(target string) {
 			case chs[1] <- host:
 			case chs[2] <- host:
 			default:
+				share.mu.Lock()
+				share.queue = append([]string{host}, share.queue...)
+				share.mu.Unlock()
 			}
 		}
 		localQueue = localQueue[len(localQueue):]
+		time.Sleep(100 * time.Millisecond)
 	}
 	if cancelFlag {
 		share.mu.Unlock()
@@ -84,6 +89,9 @@ func fanoutWorker(ch chan string, share *Share, conf Config, g *Graph) {
 
 		connections := netstat(host, conf)
 		if len(connections) >= conf.connectionLimit {
+			share.mu.Lock()
+			share.checked += 1
+			share.mu.Unlock()
 			continue
 		}
 
@@ -100,6 +108,7 @@ func fanoutWorker(ch chan string, share *Share, conf Config, g *Graph) {
 		}
 		share.checked += 1
 		share.mu.Unlock()
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 

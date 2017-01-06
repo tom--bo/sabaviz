@@ -2,7 +2,7 @@ package main
 
 import (
 	"os"
-	"testing"
+	// "testing"
 )
 
 func ExampleTestSabaviz() {

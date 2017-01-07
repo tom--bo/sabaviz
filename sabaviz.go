@@ -10,11 +10,23 @@ import (
 	"time"
 )
 
+type NetstatInterface interface {
+	netstat(conf Config, host string) []Connection
+	checkDistri(host string) string
+	makeConnectionObj(host string, l []string) Connection
+	pickPort(l, f string) string
+	checkExcludePattern(conf Config, l []string) bool
+	checkRegexp(reg, str string) bool
+}
+
 type Sabaviz struct {
 	outStream, errStream io.Writer
 	conf                 Config
 	share                *Share
+	netstatImpl          NetstatInterface
 }
+
+type netstatImpl struct{}
 
 type Connection struct {
 	hostName string
@@ -29,11 +41,12 @@ type Share struct {
 	mu      sync.Mutex
 }
 
-func (s Sabaviz) main(target string) {
+func (s *Sabaviz) exec(target string, n netstatImpl) {
 	g := &Graph{}
 	g.NewGraph()
 	g.AddNode(target)
 
+	s.netstatImpl = n
 	s.share = &Share{found: 1, checked: 0}
 	s.share.queue = append([]string{}, target)
 	s.share.hostMap = make(map[string]bool)
@@ -81,14 +94,14 @@ func (s Sabaviz) main(target string) {
 	fmt.Println(g.graph.String())
 }
 
-func (s Sabaviz) fanoutWorker(ch chan string, g *Graph) {
+func (s *Sabaviz) fanoutWorker(ch chan string, g *Graph) {
 	for {
 		host, ok := <-ch
 		if !ok {
 			return
 		}
 
-		connections := s.netstat(host)
+		connections := s.netstatImpl.netstat(s.conf, host)
 		if len(connections) >= s.conf.connectionLimit {
 			s.share.mu.Lock()
 			s.share.checked += 1
@@ -114,12 +127,12 @@ func (s Sabaviz) fanoutWorker(ch chan string, g *Graph) {
 }
 
 // return slice of Connection object which is unique by port and hostname
-func (s Sabaviz) netstat(host string) []Connection {
+func (n netstatImpl) netstat(conf Config, host string) []Connection {
 	var ret []Connection
 	connMap := make(map[Connection]bool)
 
 	netstatOption := ""
-	distri := s.checkDistri(host)
+	distri := n.checkDistri(host)
 	switch distri {
 	case "Amazon Linux AMI":
 		netstatOption = "-atp"
@@ -141,8 +154,8 @@ func (s Sabaviz) netstat(host string) []Connection {
 	for _, line := range lines {
 		l := strings.Fields(line)
 		if len(l) > 6 && (strings.Contains(l[5], "ESTABLISHED") || strings.Contains(l[5], "TIME_WAIT")) {
-			if s.checkExcludePattern(l) {
-				conn := s.makeConnectionObj(host, l)
+			if n.checkExcludePattern(conf, l) {
+				conn := n.makeConnectionObj(host, l)
 				_, ok := connMap[conn]
 				if !ok {
 					ret = append(ret, conn)
@@ -154,7 +167,7 @@ func (s Sabaviz) netstat(host string) []Connection {
 	return ret
 }
 
-func (s Sabaviz) checkDistri(host string) string {
+func (n netstatImpl) checkDistri(host string) string {
 	distri := ""
 	out, _ := exec.Command("ssh", host, "cat", "/etc/issue").Output()
 	issue := string(out)
@@ -170,7 +183,7 @@ func (s Sabaviz) checkDistri(host string) string {
 	return distri
 }
 
-func (s Sabaviz) makeConnectionObj(host string, l []string) Connection {
+func (n netstatImpl) makeConnectionObj(host string, l []string) Connection {
 	local := strings.Split(l[3], ":")[0]
 	localPort := strings.Split(l[3], ":")[1]
 	foreign := strings.Split(l[4], ":")[0]
@@ -182,14 +195,14 @@ func (s Sabaviz) makeConnectionObj(host string, l []string) Connection {
 	} else {
 		conn.hostName = local
 	}
-	conn.port = s.pickPort(localPort, foreignPort)
+	conn.port = n.pickPort(localPort, foreignPort)
 	return conn
 }
 
-func (s Sabaviz) pickPort(l, f string) string {
-	if s.checkRegexp(`[a-zA-Z]`, l) {
+func (n netstatImpl) pickPort(l, f string) string {
+	if n.checkRegexp(`[a-zA-Z]`, l) {
 		return l
-	} else if s.checkRegexp(`[a-zA-Z]`, f) {
+	} else if n.checkRegexp(`[a-zA-Z]`, f) {
 		return f
 	}
 
@@ -199,26 +212,26 @@ func (s Sabaviz) pickPort(l, f string) string {
 	return f
 }
 
-func (s Sabaviz) checkExcludePattern(l []string) bool {
+func (n netstatImpl) checkExcludePattern(conf Config, l []string) bool {
 	local := strings.Split(l[3], ":")[0]
 	localPort := strings.Split(l[3], ":")[1]
 	foreign := strings.Split(l[4], ":")[0]
 	foreignPort := strings.Split(l[4], ":")[1]
 	processName := l[6]
 
-	for _, h := range s.conf.hostCheck {
+	for _, h := range conf.hostCheck {
 		if !strings.Contains(local, h) || !strings.Contains(foreign, h) {
 			return false
 		}
 	}
 
-	for _, exProcess := range s.conf.exProcesses {
+	for _, exProcess := range conf.exProcesses {
 		if exProcess != "" && strings.Contains(processName, exProcess) {
 			return false
 		}
 	}
 
-	for _, exPort := range s.conf.exPorts {
+	for _, exPort := range conf.exPorts {
 		if exPort != "" && (strings.Contains(localPort, exPort) || strings.Contains(foreignPort, exPort)) {
 			return false
 		}
@@ -227,6 +240,6 @@ func (s Sabaviz) checkExcludePattern(l []string) bool {
 	return true
 }
 
-func (s Sabaviz) checkRegexp(reg, str string) bool {
+func (n netstatImpl) checkRegexp(reg, str string) bool {
 	return regexp.MustCompile(reg).Match([]byte(str))
 }

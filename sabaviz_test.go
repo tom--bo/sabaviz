@@ -16,7 +16,8 @@ func ExampleTestSabaviz() {
 		connectionLimit: 20,
 	}
 	sabaviz := &Sabaviz{outStream: os.Stdout, errStream: os.Stderr, conf: conf}
-	sabaviz.main("test.server.local")
+	dummyNetstatImpl = &netstatImpl{}
+	sabaviz.exec(dummyNetstatImpl, "test.server.local")
 	// Unordered output:
 	// graph G {
 	// 	"test.server.local";

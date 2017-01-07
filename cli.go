@@ -85,8 +85,10 @@ func (cli *CLI) Run(args []string) int {
 	conf.connectionLimit = connectionLimit
 
 	firstHost := flags.Args()[0]
+
+	Inetstat := netstatImpl{}
 	sabaviz := &Sabaviz{outStream: cli.outStream, errStream: cli.errStream, conf: conf}
-	sabaviz.main(firstHost)
+	sabaviz.exec(firstHost, Inetstat)
 
 	return ExitCodeOK
 }

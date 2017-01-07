@@ -87,8 +87,8 @@ func (cli *CLI) Run(args []string) int {
 	firstHost := flags.Args()[0]
 
 	Inetstat := netstatImpl{}
-	sabaviz := &Sabaviz{outStream: cli.outStream, errStream: cli.errStream, conf: conf}
-	sabaviz.exec(firstHost, Inetstat)
+	sabaviz := &Sabaviz{outStream: cli.outStream, errStream: cli.errStream, conf: conf, netstatImpl: Inetstat}
+	sabaviz.exec(firstHost)
 
 	return ExitCodeOK
 }

@@ -12,11 +12,6 @@ import (
 
 type NetstatInterface interface {
 	netstat(conf Config, host string) []Connection
-	checkDistri(host string) string
-	makeConnectionObj(host string, l []string) Connection
-	pickPort(l, f string) string
-	checkExcludePattern(conf Config, l []string) bool
-	checkRegexp(reg, str string) bool
 }
 
 type Sabaviz struct {
@@ -41,12 +36,11 @@ type Share struct {
 	mu      sync.Mutex
 }
 
-func (s *Sabaviz) exec(target string, n netstatImpl) {
+func (s *Sabaviz) exec(target string) {
 	g := &Graph{}
 	g.NewGraph()
 	g.AddNode(target)
 
-	s.netstatImpl = n
 	s.share = &Share{found: 1, checked: 0}
 	s.share.queue = append([]string{}, target)
 	s.share.hostMap = make(map[string]bool)
